@@ -26,7 +26,7 @@ type Command struct {
 
 type Attachment struct {
 	Pretext string `json:"pretext"`
-	Text string `json:"text"`
+	Text 		string `json:"text"`
 }
 
 // TODO Verify token each time
@@ -85,11 +85,6 @@ func GetScore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if amount < 0 {
-		http.Error(w, "User not found", 400)
-		return
-	}
-
 	w.Write([]byte(fmt.Sprintf("You have *%d Nero*", amount)))
 }
 
@@ -129,7 +124,7 @@ func parseRequest(r *http.Request) (Command, error) {
 }
 
 func sendMsg(msg string, rec string, att string) {
-	token := "xoxp-2311130354-288237133235-357870053315-338b16386c80446ce6ab4f0b62e83e8b"
+	token := ""
 	form := url.Values{}
 	form.Add("text", msg)
 	form.Add("channel", rec)
