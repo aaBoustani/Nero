@@ -1,26 +1,29 @@
 package main
 
 import (
-	"strconv"
 	"log"
+	"strconv"
 )
 
 var NEROLIMIT = 7
 
 func AddNero(user string, amount int) (int, error) {
-	if amount > NEROLIMIT {
+	remNero, err := GetRemaining(user)
+	if amount > NEROLIMIT || amount > remNero {
 		log.Panic("The amount requested is over the limit")
 		return -2, nil
 	}
 
-	hit, err := Find(user)
+	go UpdateRemaining(user, remNero - amount)
+
+	hit, err := db.FindOne(user)
 	if err != nil {
 		log.Panic(err)
 		return -1, err
 	}
 
 	if len(hit) < 1 {
-		Add(user, strconv.Itoa(amount))
+		db.UpdateTxn(user, strconv.Itoa(amount))
 		return amount, nil
 	}
 
@@ -30,12 +33,12 @@ func AddNero(user string, amount int) (int, error) {
 	}
 
 	total := i + amount
-	Add(user, strconv.Itoa(total))
+	db.UpdateTxn(user, strconv.Itoa(total))
 	return total, nil
 }
 
 func GetNero(user string) (int, error) {
-	hit, err := Find(user)
+	hit, err := db.FindOne(user)
 	if err != nil {
 		log.Panic(err)
 		return -1, err
@@ -44,4 +47,24 @@ func GetNero(user string) (int, error) {
 		return 0, nil
 	}
 	return strconv.Atoi(hit)
+}
+
+func GetRemaining(user string) (int, error) {
+	hit, err := rem.FindOne(user)
+	if err != nil {
+		log.Panic(err)
+		return -1, err
+	}
+	if hit == "" {
+		return NEROLIMIT, nil
+	}
+	return strconv.Atoi(hit)
+}
+
+func UpdateRemaining(user string, amount int) error {
+	return rem.Update(user, strconv.Itoa(amount))
+}
+
+func ResetAllRemaining() {
+	rem.ResetAll(strconv.Itoa(NEROLIMIT))
 }

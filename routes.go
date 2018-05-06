@@ -19,6 +19,7 @@ func AllRoutes() Routes {
     Route{ "POST", "/give", Give },
     Route{ "POST", "/get-score", GetScore },
     Route{ "POST", "/all", GetAllScores },
+    Route{ "POST", "/rem", GetAllRemaining },
 	}
 	return routes
 }

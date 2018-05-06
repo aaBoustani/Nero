@@ -1,32 +1,37 @@
 package main
 
 import (
+  "fmt"
   "log"
+  "strconv"
 
   "github.com/dgraph-io/badger"
-  "fmt"
-  "strconv"
 )
 
-var db *badger.DB
-
-func Init() *badger.DB {
-  opts := badger.DefaultOptions
-  opts.Dir = "badger"
-  opts.ValueDir = "badger"
-  db, err := badger.Open(opts)
-  if err != nil {
-    log.Fatal(err)
-  }
-
-  return db
+type Database struct {
+  opts   badger.Options
+  name   string
 }
 
-func Find(key string) (string, error) {
+func New(name string) *Database {
+  return &Database{ name: name }
+}
+
+func (d *Database) Init() {
+  d.opts = badger.DefaultOptions
+  d.opts.Dir = "badger/" + d.name
+  d.opts.ValueDir = "badger/" + d.name
+}
+
+func (d *Database) FindOne(key string) (string, error) {
   hit := ""
-  db := Init()
+  db, err := badger.Open(d.opts)
+  if err != nil {
+    log.Println(d.name, "open error: ", err.Error())
+    return "", err
+  }
   defer db.Close()
-  err := db.View(func(txn *badger.Txn) error {
+  err = db.View(func(txn *badger.Txn) error {
     item, err := txn.Get([]byte(key))
     if err != nil {
       if err == badger.ErrKeyNotFound {
@@ -43,48 +48,28 @@ func Find(key string) (string, error) {
   })
 
   if err != nil {
-    log.Panic(err)
+    log.Println(d.name, "View error: ", err.Error())
     return "", err
   }
 
-  fmt.Println(key)
-  fmt.Println(hit)
+  fmt.Println(key, hit)
   return hit, nil
 }
 
-func Add(key string, value string) error {
-  db := Init()
-  defer db.Close()
-  err := db.Update(func(tx *badger.Txn) error {
-    // Start a writable transaction.
-    txn := db.NewTransaction(true)
-
-    defer txn.Discard()
-
-    // Use the transaction...
-    fmt.Printf("value to add is %s\n", value)
-    err := txn.Set([]byte(key), []byte(value))
-    if err != nil {
-      return err
-    }
-
-    // Commit the transaction and check for error.
-    if err := txn.Commit(nil); err != nil {
-      return err
-    }
-    return nil
-  })
-
-  return err
-}
-
-func PrintAll() []Nero {
-  db := Init()
-  defer db.Close()
+func (d *Database) FindAll() []Nero {
   res := []Nero{}
+
+  db, err := badger.Open(d.opts)
+
+  if err != nil {
+    log.Println(d.name, "open error: ", err.Error())
+    return res
+  }
+
+  defer db.Close()
+
   db.View(func(txn *badger.Txn) error {
     opts := badger.DefaultIteratorOptions
-    opts.PrefetchSize = 10
     it := txn.NewIterator(opts)
     defer it.Close()
     for it.Rewind(); it.Valid(); it.Next() {
@@ -102,4 +87,76 @@ func PrintAll() []Nero {
     return nil
   })
   return res
+}
+
+func (d *Database) Update(key string, value string) error {
+  db, err := badger.Open(d.opts)
+
+  if err != nil {
+    log.Println(d.name, "open error: ", err.Error())
+    return err
+  }
+
+  defer db.Close()
+
+  return db.Update(func(tx *badger.Txn) error {
+    return tx.Set([]byte(key), []byte(value))
+  })
+}
+
+func (d *Database) UpdateTxn(key string, value string) error {
+  db, err := badger.Open(d.opts)
+
+  if err != nil {
+    log.Println(d.name, "open error: ", err.Error())
+    return err
+  }
+
+  defer db.Close()
+
+  return db.Update(func(tx *badger.Txn) error {
+    txn := db.NewTransaction(true)
+
+    defer txn.Discard()
+
+    if err := txn.Set([]byte(key), []byte(value)); err != nil {
+      return err
+    }
+
+    return txn.Commit(nil)
+
+  })
+}
+
+func (d *Database) ResetAll(value string) error {
+  db, err := badger.Open(d.opts)
+
+  if err != nil {
+    log.Println(d.name, "open error: ", err.Error())
+    return err
+  }
+
+  defer db.Close()
+
+  keys := []string{}
+
+  db.View(func(txn *badger.Txn) error {
+    opts := badger.DefaultIteratorOptions
+    opts.PrefetchValues = false
+    it := txn.NewIterator(opts)
+    defer it.Close()
+    for it.Rewind(); it.Valid(); it.Next() {
+      item := it.Item()
+      k := item.Key()
+      keys = append(keys, string(k))
+    }
+    return nil
+  })
+
+  return db.Update(func(tx *badger.Txn) error {
+    for _, v := range keys {
+      tx.Set([]byte(v), []byte(value))
+    }
+    return nil
+  })
 }

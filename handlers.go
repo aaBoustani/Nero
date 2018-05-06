@@ -54,7 +54,7 @@ func Give(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if amount > NEROLIMIT {
-		w.Write([]byte("You're sending more than what is allowed."))
+		w.Write([]byte("You're giving more than what is allowed."))
 		return
 	}
 
@@ -89,7 +89,14 @@ func GetScore(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAllScores(w http.ResponseWriter, r *http.Request) {
-	res := PrintAll()
+	res := db.FindAll()
+	for e := range res {
+		w.Write([]byte(fmt.Sprintf("%s %d\n", res[e].User, res[e].Amount)))
+	}
+}
+
+func GetAllRemaining(w http.ResponseWriter, r *http.Request) {
+	res := rem.FindAll()
 	for e := range res {
 		w.Write([]byte(fmt.Sprintf("%s %d\n", res[e].User, res[e].Amount)))
 	}
@@ -124,7 +131,7 @@ func parseRequest(r *http.Request) (Command, error) {
 }
 
 func sendMsg(msg string, rec string, att string) {
-	token := ""
+	token := "xoxp-2311130354-288237133235-359361307334-ebbb641557df82562ec9c114a47c3c20"
 	form := url.Values{}
 	form.Add("text", msg)
 	form.Add("channel", rec)
