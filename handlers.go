@@ -48,6 +48,12 @@ func Give(w http.ResponseWriter, r *http.Request) {
 
 	s := strings.Split(u.Text, " ")
 	user := s[0]
+
+	if user[1:] == u.UserName {
+    http.Error(w, "You can't give Nero to yourself!", 400)
+    return
+  }
+
 	i := 1
 	amount := 1
 	if len(s) > 1 {
