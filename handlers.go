@@ -1,26 +1,30 @@
 package main
 
 import (
-	"net/http"
-	"fmt"
-	"net/url"
-	"strings"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
+	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 )
 
 type Command struct {
-	Token string
-	TeamID string
+	Token	     string
+	TeamID     string
 	TeamDomain string
-	ChannelID string
+
+	ChannelID   string
 	ChannelName string
-	UserID string
+
+	UserID   string
 	UserName string
+
 	Command string
-	Text string
+	Text    string
+
 	ResponseURL *url.URL
 }
 
@@ -29,14 +33,17 @@ type Attachment struct {
 	Text 		string `json:"text"`
 }
 
-// TODO Verify token each time
-// TODO secure the keys
 func Give(w http.ResponseWriter, r *http.Request) {
 	u, err := parseRequest(r)
 
 	if err != nil {
 			http.Error(w, err.Error(), 400)
 			return
+	}
+
+	if !isLegit(u) {
+		http.Error(w, "This request is not from an authorized Slack app", 403)
+		return
 	}
 
 	s := strings.Split(u.Text, " ")
@@ -76,6 +83,11 @@ func GetScore(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	if !isLegit(u) {
+		http.Error(w, "This request is not from an authorized Slack app", 403)
 		return
 	}
 
@@ -131,7 +143,7 @@ func parseRequest(r *http.Request) (Command, error) {
 }
 
 func sendMsg(msg string, rec string, att string) {
-	token := "xoxp-2311130354-288237133235-359361307334-ebbb641557df82562ec9c114a47c3c20"
+	token := ENV.SlackAccessToken
 	form := url.Values{}
 	form.Add("text", msg)
 	form.Add("channel", rec)
@@ -145,4 +157,8 @@ func sendMsg(msg string, rec string, att string) {
 	form.Add("attachments", string(out))
 
 	http.Post("https://slack.com/api/chat.postMessage", "application/x-www-form-urlencoded", bytes.NewBuffer([]byte(form.Encode())))
+}
+
+func isLegit(c Command) bool {
+	return c.Token == ENV.SlackVerToken
 }

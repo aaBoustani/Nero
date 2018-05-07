@@ -9,8 +9,11 @@ import (
 
 var db *Database
 var rem *Database
+var ENV *Env
 
 func main() {
+	ENV = InitEnv()
+
 	db = New("nero")
 	db.Init()
 
